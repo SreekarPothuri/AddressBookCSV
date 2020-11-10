@@ -1,5 +1,9 @@
 package blz.addressbook;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,7 +13,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Scanner;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
 
 import blz.addressbook.*;
 
@@ -17,7 +23,9 @@ public class AddressBook {
 
 	public static List<Person> personList = new ArrayList<Person>();
 	static Scanner sc = new Scanner(System.in);
-	AddressBookFileIOService addressBookIO = new AddressBookFileIOService();
+	static String addressBookName;
+	Person newEntry;
+	boolean isExist;
 
 	public enum IOService {
 		CONSOLE_IO, FILE_IO, DB_IO, REST_IO
@@ -30,9 +38,11 @@ public class AddressBook {
 		this.personList = personList;
 	}
 
-	public AddressBook() {}
+	public AddressBook() {
+	}
 
-	private void addPerson() {
+	private void addPerson(String addressBookName) {
+		isExist = false;
 		System.out.println("Enter Person Details");
 		System.out.println("Enter FirstName: ");
 		String firstName = sc.next();
@@ -49,9 +59,26 @@ public class AddressBook {
 		System.out.println("Enter zipCode: ");
 		long zipCode = sc.nextLong();
 
-		Person person = new Person(firstName, lastName, address, city, state, mobileNum, zipCode);
-		personList.add(person);
-		System.out.println("Person details added successfully");
+		if (personList.size() > 0) {
+			for (Person details : personList) {
+				newEntry = details;
+				if (firstName.equals(newEntry.firstName) && lastName.equals(newEntry.lastName)) {
+					System.out.println("Contact " + newEntry.firstName + " " + newEntry.lastName + " already exists");
+					isExist = true;
+					break;
+				}
+			}
+		}
+		if (!isExist) {
+			newEntry = new Person(firstName, lastName, address, city, state, mobileNum, zipCode);
+			personList.add(newEntry);
+			addDataToFile(firstName, lastName, address, city, state, mobileNum, zipCode, addressBookName);
+			try {
+				addDataToCSVFile(addressBookName);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	private void editContact() {
@@ -134,7 +161,7 @@ public class AddressBook {
 		int createdContacts = 1;
 		while (createdContacts <= numofContacts) {
 			if ((addressBookWithUniqueName() == true) && (noDuplicateEntry() == true)) {
-				addPerson();
+				addPerson(addressBookName);
 			}
 			createdContacts++;
 		}
@@ -193,39 +220,56 @@ public class AddressBook {
 		sortedList = personList.stream().sorted(nameComparator).collect(Collectors.toList());
 		sortedList.stream().forEach(i -> System.out.println(i));
 	}
-	
-	public void sortByCity(){
-        Comparator<Person> nameComparator = Comparator.comparing(Person::getCity);
+
+	public void sortByCity() {
+		Comparator<Person> nameComparator = Comparator.comparing(Person::getCity);
 		List<Person> sortedList = new ArrayList<Person>();
 		sortedList = personList.stream().sorted(nameComparator).collect(Collectors.toList());
 		sortedList.stream().forEach(i -> System.out.println(i));
 	}
-	
-	public void sortByState(){
-        Comparator<Person> nameComparator = Comparator.comparing(Person::getState);
+
+	public void sortByState() {
+		Comparator<Person> nameComparator = Comparator.comparing(Person::getState);
 		List<Person> sortedList = new ArrayList<Person>();
 		sortedList = personList.stream().sorted(nameComparator).collect(Collectors.toList());
 		sortedList.stream().forEach(i -> System.out.println(i));
 	}
-	
-	public void sortByZip(){
-        Comparator<Person> nameComparator = Comparator.comparing(Person::getZipCode);
+
+	public void sortByZip() {
+		Comparator<Person> nameComparator = Comparator.comparing(Person::getZipCode);
 		List<Person> sortedList = new ArrayList<Person>();
 		sortedList = personList.stream().sorted(nameComparator).collect(Collectors.toList());
 		sortedList.stream().forEach(i -> System.out.println(i));
 	}
-	
-	public static void writeAddressBookData(IOService ioService) {
-		if (ioService.equals(AddressBook.IOService.CONSOLE_IO))
-			System.out.println("Employee Payroll to Details : " + personList);
-		if (ioService.equals(AddressBook.IOService.FILE_IO))
-			new AddressBookFileIOService().writeData(personList);
+
+	public void addDataToFile(String firstName, String lastName, String address, String city, String state,
+			String phoneNumber, long zip, String addressBookName) {
+		System.out.println("Enter name for txt written file : ");
+		String fileName = sc.next();
+		File file = new File("F:\\BridgeLabz Fellowship Program\\FilesIncluded\\" + fileName + ".txt");
+		if (!file.exists()) {
+			try {
+				file.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		try {
+			FileWriter fw = new FileWriter(file.getAbsoluteFile(), true);
+			BufferedWriter bw = new BufferedWriter(fw);
+			bw.write("Contact:" + "\n1.First name: " + firstName + "\n2.Last name: " + lastName + "\n3.Address: "
+					+ address + "\n4.City: " + city + "\n5.State: " + state + "\n6.Phone number: " + phoneNumber
+					+ "\n7.Zip: " + zip + "\n");
+			bw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void readDataFromFile() {
-		System.out.println("Enter address book name: ");
-		String addressBookFile = sc.nextLine();
-		Path filePath = Paths.get("F:\\BridgeLabz Fellowship Program\\practice\\AddressBookSystem\\" + addressBookFile + ".txt");
+		System.out.println("Enter address book name : ");
+		String fileName = sc.nextLine();
+		Path filePath = Paths.get("F:\\BridgeLabz Fellowship Program\\FilesIncluded" + fileName + ".txt");
 		try {
 			Files.lines(filePath).map(line -> line.trim()).forEach(line -> System.out.println(line));
 		} catch (IOException e) {
@@ -233,19 +277,63 @@ public class AddressBook {
 		}
 	}
 
-	public static void main(String args[]) {
+	public void addDataToCSVFile(String addressBookName) throws IOException {
+		System.out.println("Enter name for csv written file : ");
+		String fileName = sc.next();
+		Path filePath = Paths.get("F:\\BridgeLabz Fellowship Program\\FilesIncluded\\" + fileName + ".csv");
+
+		if (Files.notExists(filePath))
+			Files.createFile(filePath);
+		File file = new File(String.valueOf(filePath));
+
+		try {
+			FileWriter outputfile = new FileWriter(file, true);
+			CSVWriter writer = new CSVWriter(outputfile);
+			List<String[]> data = new ArrayList<>();
+			for (Person detail : personList) {
+				data.add(new String[] { "Contact:" + "\n1.First name: " + detail.firstName + "\n2.Last name: "
+						+ detail.lastName + "\n3.Address: " + detail.address + "\n4.City: " + detail.city
+						+ "\n5.State: " + detail.state + "\n6.Phone number: " + detail.mobileNum + "\n7.Zip: "
+						+ detail.zipCode + "\n" });
+			}
+			writer.writeAll(data);
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void readDataFromCSVFile() {
+		System.out.println("Enter address book name : ");
+		String fileName = sc.next();
+		CSVReader reader = null;
+		try {
+			reader = new CSVReader(new FileReader("F:\\BridgeLabz Fellowship Program\\FilesIncluded\\" + fileName + ".csv"));
+			String[] nextLine;
+			while ((nextLine = reader.readNext()) != null) {
+				for (String token : nextLine) {
+					System.out.println(token);
+				}
+				System.out.print("\n");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void main(String args[]) throws IOException {
 		AddressBook contact = new AddressBook();
 		System.out.println("*****WELCOME TO ADDRESS BOOK PROGRAM*****");
 
-			do	{
+		do {
 			System.out.println("1.Add Person\n2.Print contact details\n3.Edit contact details\n"
 					+ "4.Delete contact details\n5.Add another Person\n6.Search By City\n7.View By City\n"
 					+ "8.Count Based On City\n9.Sort by FirstName\n10.Sort By City\n11.Sort By State\n"
-					+ "12.Sort By ZipCode\n13.Exit");
+					+ "12.Sort By ZipCode\n13.Add to text File\n14.Read From Text File\n15.Add to CSV File\n16.Read from CSV file\n17.EXIT");
 			choice = sc.nextInt();
 			switch (choice) {
 			case 1:
-				contact.addPerson();
+				contact.addPerson(addressBookName);
 				break;
 			case 2:
 				contact.printContact();
@@ -281,11 +369,25 @@ public class AddressBook {
 				contact.sortByZip();
 				break;
 			case 13:
+				contact.addPerson(addressBookName);
+				System.out.println("Added Successfully to text file!!");
+				break;
+			case 14:
+				contact.readDataFromFile();
+				break;
+			case 15:
+				contact.addPerson(addressBookName);
+				System.out.println("Added Successfully to csv file!!");
+				break;
+			case 16:
+				contact.readDataFromCSVFile();
+				break;
+			case 17:
 				System.out.println("Exited Successfully!!");
 				break;
 			default:
 				System.out.println("Error! Choose right option from the above given options Only");
 			}
-		}while (choice != 13);
+		} while (choice != 17);
 	}
 }
